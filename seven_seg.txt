@@ -1,0 +1,65 @@
+init7SegDisp:
+		lui $t0, 0xffff   # load $t0 with base IO address
+		addi $t1, $zero, 0x3f  # load seven segment display pattern for 0
+		sb $t1, 0x10($t0)  # send 0 to right segment display
+		sb $t1, 0x11($t0)  # send 0 to left segment display
+		jr $ra
+
+Num2SegDisp:
+		la 	$t0,SegBytes # load the base address of seven-seg pentterns
+		add 	$t0,$t0,$s0    # calculate the address of the target pattern
+		lb	$t1,0($t0)    # load the target pattern 
+		lui 	$t0, 0xffff   # load $t0 with base IO address
+		sb 	$t1, 0x11($t0) # send the target pattern to the 7-segment disp
+		la 	$t0,SegBytes # load the base address of seven-seg pentterns
+		add 	$t0, $t0, $s1
+		lb 	$t1, 0($t0)
+		lui 	$t0, 0xffff
+		sb 	$t1, 0x10($t0)
+		jr 	$ra
+
+getPressedKey: 
+		lui $t0, 0xffff   		# load $t0 with base IO address  
+		li $t4, 1  
+
+num:		
+		#addi $t4,$zero, 1       set $t4 to 1 to scan the first row
+		sb $t4, 0x12($t0)  	# command first row scanning at 0xFFFF0012
+		lb  $t2, 0x14($t0)  	# read  0xFFFF0014 for pressed keys 
+		bne $t2, $zero, KeyPress # check any pressed keys [zero --> nothing pressed]		
+		j  multiply  		#scan next row 
+
+multiply:
+		lw $t7, two
+		beq $t4, 8, getPressedKey
+		mul $t4, $t4, $t7
+		j num 
+
+KeyPress:	
+		andi $t3,$t2,0xf0    	# Mask 0xFFFF0014 most significant nibble s		
+		andi $t2,$t2,0xf      	# Mask 0xFFFF0014 least significant nibble 
+		srl   $t3,$t3,4         	# shift $t3 for further processing 
+		####  Calculate log $t3   ##########
+		add $t5,$zero, $zero		
+logt3:		
+		srl   $t3,$t3,1       
+		beqz $t3, t5_t3
+		addi $t5, $t5, 1
+		j  logt3
+
+t5_t3:		
+		move $t3,$t5
+	        ####  Calculate log $t3   ##########
+		add $t5,$zero, $zero
+logt2:		
+		srl   $t2,$t2,1       
+		beqz $t2, t5_t2
+		addi $t5, $t5, 1
+		j  logt2
+t5_t2:		
+		move $t2,$t5
+		#addiu $t3,$t3,-1
+		## calculate the value of the pressed key ## 
+		mul $t2,$t2,4
+		add  $v0,$t3,$t2
+		jr $ra 
